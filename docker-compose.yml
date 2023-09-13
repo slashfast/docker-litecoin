@@ -1,0 +1,51 @@
+version: '3.7'
+
+services:
+  tor-socks-proxy:
+    container_name: tor-socks-proxy
+    image: peterdavehello/tor-socks-proxy:latest
+    ports:
+      - 127.0.0.1:9150:9150
+    restart: unless-stopped
+    networks:
+      - default
+  litecoin:
+    container_name: litecoin
+    image: slashfast/docker-litecoin
+    build:
+      args:
+        - VERSION=0.21.2.2
+        - ARCH=x86_64 # aarch64, arm, riscv64, x86_64
+        - VARIANT=linux-gnu # linux-gnueabihf for arm
+    ports:
+      # P2P network
+      - 9333:9333 # mainnet
+      - 18333:18333 # testnet
+      - 18444:18444 # regnet
+      # RPC interface
+      - 9332:9332 # mainnet
+      - 18332:18332 # testnet
+      - 18443:18443 # regnet
+      # ZMQ ports
+      - 28332:28332 # transactions
+      - 28333:28333 # blocks
+    restart: unless-stopped
+    environment:
+      - RPC_USER=litecoin
+
+      # Generate a rpcauth pair there 👉 https://jlopp.github.io/bitcoin-core-rpc-auth-generator/
+      # You can pass RPC_AUTH before the command (RPC_AUTH=username:hash docker compose up)
+      # Also you can pass rpcuser=user:hash to the bitcoin.conf in the .litecoin directory
+      - RPC_AUTH= #REQUIRED
+      - CHAIN=main
+      - PROXY=tor-socks-proxy:9150
+    depends_on:
+      tor-socks-proxy:
+        condition: service_healthy
+    networks:
+      - default
+    volumes:
+      - ../litecoin:/data
+
+networks:
+  default:
